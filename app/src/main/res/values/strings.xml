@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">AADPractica2</string>
+    <string name="tituloA">Contactos</string>
+    <!--Titulos de los text view -->
+    <string name="tvTNombre">Nombre:</string>
+    <string name="tvTTelefono">Teléfono:</string>
+</resources>
