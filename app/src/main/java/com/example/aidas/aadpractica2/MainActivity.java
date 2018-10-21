@@ -2,9 +2,10 @@ package com.example.aidas.aadpractica2;
 
 import android.Manifest;
 import android.content.ContentResolver;
+import android.content.Context;
 import android.content.pm.PackageManager;
-import android.content.res.Resources;
 import android.database.Cursor;
+import android.os.Environment;
 import android.provider.ContactsContract;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -16,6 +17,12 @@ import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.widget.Toast;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
@@ -25,7 +32,6 @@ public class MainActivity extends AppCompatActivity {
     private RecyclerView.LayoutManager mLM;
     private RecyclerView.Adapter mAdapter;
     private ArrayList<Contacto> contactos = new ArrayList<>();
-    private String contactosS;
     private static final int MY_PERMISSIONS_REQUEST_READ_CONTACTS = 55;
     private static final String TAG = "MITAG";
 
@@ -39,11 +45,6 @@ public class MainActivity extends AppCompatActivity {
 
         compruebaPermisos();
 
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
     }
 
     private void muestraExplicacion() {
@@ -76,6 +77,7 @@ public class MainActivity extends AppCompatActivity {
 
             //Si ya tenemos los permisos cargamos los datos desde el archivo donde
             //se han almacenado previamente.
+
         }
     }
 
@@ -89,10 +91,13 @@ public class MainActivity extends AppCompatActivity {
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 
                     getContactos();
+                    //guardarEnMemoriaInternaP();
+                    //leerMemoriaInternaP();
+
+                    guardarEnMemoriaExternaP();
+                    leerMemoriaExternaP();
 
                     cargarRV();
-
-                    Log.v(TAG, contactos.toString());
 
                 } else {
 
@@ -174,5 +179,128 @@ public class MainActivity extends AppCompatActivity {
         mLM = new LinearLayoutManager(this);
         mRV.setLayoutManager(mLM);
 
+    }
+
+    public boolean isExternalStorageWritable() {
+
+        String state = Environment.getExternalStorageState();
+
+        if (Environment.MEDIA_MOUNTED.equals(state)) {
+            return true;
+        }
+
+        return false;
+
+
+    }
+
+    public String setCSVString(){
+
+        String fileContents = "";
+
+        if(contactos!=null && !contactos.isEmpty()){
+
+            for(Contacto c: contactos){
+
+                fileContents = "\'" + c.getNombre() + "\';" + "\'" + c.getTelefono() + "\'\n";
+            }
+
+        }
+
+        return fileContents;
+    }
+
+    public void guardarEnMemoriaInternaP(){
+
+        String filename = "contactos.txt";
+        String fileContents = setCSVString();
+        FileOutputStream outputStream;
+
+
+        File file = new File(MainActivity.this.getFilesDir(), filename);
+
+        try {
+
+            outputStream = openFileOutput(filename, Context.MODE_PRIVATE);
+            outputStream.write(fileContents.getBytes());
+            outputStream.close();
+
+            Log.v(TAG, "despuesde escribir");
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+
+        }
+    }
+
+    public void leerMemoriaInternaP(){
+
+        String filename = "contactos.txt";
+        File file = new File(MainActivity.this.getFilesDir(), filename);
+
+        try {
+
+            BufferedReader br = new BufferedReader(new FileReader(file));
+            String st;
+            while ((st = br.readLine()) != null){
+
+                Log.v(TAG, "Linea: " + st);
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void guardarEnMemoriaExternaP() {
+
+        String filename = "contactos.txt";
+        String fileContents = setCSVString();
+        FileOutputStream outputStream;
+
+        //Pasamos null para que acceda a la memoria privada de nuestra aplicación.
+        File file = new File(MainActivity.this.getExternalFilesDir(null), filename);
+
+        try {
+
+            outputStream = openFileOutput(filename, Context.MODE_PRIVATE);
+            outputStream.write(fileContents.getBytes());
+            outputStream.close();
+
+            Log.v(TAG, "despuesde escribir en MExternaPrivada");
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+
+        }
+
+        Log.v(TAG, "path del file: " + file.getPath());
+
+    }
+
+    public void leerMemoriaExternaP(){
+
+        String filename = "contactos.txt";
+        File file = new File(MainActivity.this.getExternalFilesDir(null), filename);
+
+        try {
+
+            Log.v(TAG,"-----------------------------------------------------");
+
+            BufferedReader br = new BufferedReader(new FileReader(file));
+            String st;
+
+            while ((st = br.readLine()) != null){
+                Log.v(TAG,"-----------------------------------------------------");
+                Log.v(TAG, "Linea: " + st);
+            }
+
+        } catch (IOException e) {
+
+            e.printStackTrace();
+
+        }
     }
 }
