@@ -19,7 +19,6 @@ import android.widget.Toast;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
@@ -43,7 +42,7 @@ public class MainActivity extends AppCompatActivity {
         tb = findViewById(R.id.toolbar);
         tb.setTitle(R.string.tituloA);
 
-        compruebaPermisos();
+        compruebaPermisosLectura();
 
     }
 
@@ -53,7 +52,7 @@ public class MainActivity extends AppCompatActivity {
                 Toast.LENGTH_LONG).show();
     }
 
-    public void compruebaPermisos(){
+    public void compruebaPermisosLectura(){
 
         if (ContextCompat.checkSelfPermission(MainActivity.this,
                 Manifest.permission.READ_CONTACTS)!= PackageManager.PERMISSION_GRANTED) {
@@ -91,11 +90,20 @@ public class MainActivity extends AppCompatActivity {
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 
                     getContactos();
-                    //guardarEnMemoriaInternaP();
+
+                    guardarEnMemoriaInternaP();
                     //leerMemoriaInternaP();
 
-                    guardarEnMemoriaExternaP();
-                    leerMemoriaExternaP();
+                    /*
+                    if(isExternalStorageWritable()){
+
+                        guardarEnMemoriaExternaP();
+                        leerMemoriaExternaP();
+
+                    }else{
+                        Log.v(TAG, "No se puede escribir en la memoria externa");
+                    }
+                    */
 
                     cargarRV();
 
@@ -191,7 +199,6 @@ public class MainActivity extends AppCompatActivity {
 
         return false;
 
-
     }
 
     public String setCSVString(){
@@ -236,6 +243,8 @@ public class MainActivity extends AppCompatActivity {
 
     public void leerMemoriaInternaP(){
 
+        String nombre;
+        String telefono;
         String filename = "contactos.txt";
         File file = new File(MainActivity.this.getFilesDir(), filename);
 
@@ -243,9 +252,14 @@ public class MainActivity extends AppCompatActivity {
 
             BufferedReader br = new BufferedReader(new FileReader(file));
             String st;
+
             while ((st = br.readLine()) != null){
 
-                Log.v(TAG, "Linea: " + st);
+                String[] datos = st.split(",");
+
+                //nombre = datos[0].
+
+
             }
 
         } catch (IOException e) {
@@ -286,8 +300,6 @@ public class MainActivity extends AppCompatActivity {
         File file = new File(MainActivity.this.getExternalFilesDir(null), filename);
 
         try {
-
-            Log.v(TAG,"-----------------------------------------------------");
 
             BufferedReader br = new BufferedReader(new FileReader(file));
             String st;
