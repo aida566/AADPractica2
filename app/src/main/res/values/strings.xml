@@ -4,4 +4,9 @@
     <!--Titulos de los text view -->
     <string name="tvTNombre">Nombre:</string>
     <string name="tvTTelefono">Teléfono:</string>
+    <string name="miGuardarContactos">Guardar contactos</string>
+    <string name="miCambiarAlmacenamiento">Cambiar almacenamiento</string>
+    <string name="miExterna">Guardar en SD</string>
+    <string name="miInterna">Guardar en el teléfono</string>
+    <string name="btGuardar">Guardar</string>
 </resources>

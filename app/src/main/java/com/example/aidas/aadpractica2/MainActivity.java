@@ -4,13 +4,13 @@ import android.Manifest;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.content.res.Resources;
 import android.database.Cursor;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.ContactsContract;
-import android.support.design.widget.AppBarLayout;
+import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
@@ -19,8 +19,8 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
-import android.view.View;
-import android.widget.Button;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.widget.Toast;
 
 import java.io.BufferedReader;
@@ -28,84 +28,82 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
 
+    private static final String TAG = "MITAG";
+
     Toolbar tb;
+
     private RecyclerView mRV;
     private RecyclerView.LayoutManager mLM;
     private RecyclerView.Adapter mAdapter;
-    private ArrayList<Contacto> contactos = new ArrayList<>();
-    private ArrayList<Contacto> contactosGuardados = new ArrayList<>();
-    private static final int MY_PERMISSIONS_REQUEST_READ_CONTACTS = 55;
-    private static final String TAG = "MITAG";
 
-    private Toolbar toolbar;
-    private android.support.design.widget.AppBarLayout appbar;
-    private android.widget.Button btContactos;
-    private RecyclerView rvContactos;
+    private static ArrayList<Contacto> contactosTelefono = new ArrayList<>();
+    private ArrayList<Contacto> contactosGuardados = new ArrayList<>();
+
+    private static final int MY_PERMISSIONS_REQUEST_READ_CONTACTS = 55;
+    private static final int CODIGO_EDITAR_CONTACTO = 1;
+    private static final String CODIGO_INTERNA = "interna";
+    private static final String CODIGO_EXTERNA = "externa";
+
+    private static String CODIGO_MEMORIA;
+
+    private Contacto contactoDetalle = new Contacto();
+    private int posicionContacoSelec;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        this.rvContactos = (RecyclerView) findViewById(R.id.rvContactos);
-        this.btContactos = (Button) findViewById(R.id.btContactos);
-        this.appbar = (AppBarLayout) findViewById(R.id.appbar);
-        this.toolbar = (Toolbar) findViewById(R.id.toolbar);
+        this.mRV = (RecyclerView) findViewById(R.id.rvContactos);
 
         tb = findViewById(R.id.toolbar);
         tb.setTitle(R.string.tituloA);
+        setSupportActionBar(tb);
 
-        setListeners();
+        if(savedInstanceState != null){
 
+            Log.v(TAG, "savedInstanceState");
+
+            contactosGuardados = savedInstanceState.getParcelableArrayList("contactos");
+
+            if(!contactosGuardados.isEmpty()){
+
+                cargarRV();
+
+                Log.v(TAG, "savedInstanceState - contactos");
+            }
+        }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
+
+
     }
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
 
-        //outState.putArrayList
+        outState.putParcelableArrayList("contactos", contactosGuardados);
+
+        Log.d(TAG, "onSaveInstanteState");
+
     }
 
     @Override
     protected void onResume() {
         super.onResume();
 
-        cargarRV();
-    }
-
-    private void setListeners(){
-
-        btContactos.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-
-                if (ContextCompat.checkSelfPermission(MainActivity.this,
-                        Manifest.permission.READ_CONTACTS)== PackageManager.PERMISSION_GRANTED){
-
-                    Toast.makeText(MainActivity.this, "You have already granted this permission!",
-                            Toast.LENGTH_SHORT).show();
-
-                    getContactos();
-                    guardarEnMemoriaInternaP();
-
-                    mAdapter.notifyDataSetChanged();
-
-                }else{
-
-                    requestReadContactsPermission();
-                }
-
-            }
-        });
+        //cargarRV();
     }
 
     private void muestraExplicacion() {
@@ -160,21 +158,24 @@ public class MainActivity extends AppCompatActivity {
 
                     getContactos();
 
-                    guardarEnMemoriaInternaP();
-                    leerMemoriaInternaP();
+                    Log.v(TAG, "CODIGO: " + CODIGO_MEMORIA);
 
-                    /*
-                    if(isExternalStorageWritable()){
+                    if(CODIGO_MEMORIA.equalsIgnoreCase(CODIGO_INTERNA)){
 
-                        guardarEnMemoriaExternaP();
+                        guardarEnMemoriaInternaP(setCSVString(contactosTelefono));
+
+                        leerMemoriaInternaP();
+
+                        cargarRV();
+
+                    }else if(CODIGO_MEMORIA.equalsIgnoreCase(CODIGO_EXTERNA)){
+
+                        guardarEnMemoriaExternaP(setCSVString(contactosTelefono));
+
                         leerMemoriaExternaP();
 
-                    }else{
-                        Log.v(TAG, "No se puede escribir en la memoria externa");
+                        cargarRV();
                     }
-                    */
-
-                    cargarRV();
 
                 } else {
 
@@ -193,6 +194,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void getContactos(){
+
+        //Instanciamos la variable que contiene/contendrá los contactos del teléfono.
+        contactosTelefono = new ArrayList<>();
 
         //Creamosun contentResolver y un cursor para poder recorrer todos los contactos.
 
@@ -228,17 +232,17 @@ public class MainActivity extends AppCompatActivity {
 
                     telefono = telfCur.getString(telfCur.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER));
 
-                    Log.v(TAG, "Name: " + nombre);
-                    Log.v(TAG, "Phone Number: " + telefono);
+                    //Log.v(TAG, "Name: " + nombre);
+                    //Log.v(TAG, "Phone Number: " + telefono);
 
                     telfCur.close();
                 }
 
                 //Por último vamos guardando la información obtenida en un ArrayList de objetos Contacto
                 Contacto c =  new Contacto(nombre, telefono);
-                contactos.add(c);
+                contactosTelefono.add(c);
 
-                Log.v(TAG, c.getNombre() + " añadido.");
+                //Log.v(TAG, c.getNombre() + " añadido.");
             }
         } else {
             Log.v(TAG, "Cursor vacío en getContactos");
@@ -254,14 +258,23 @@ public class MainActivity extends AppCompatActivity {
 
     public void cargarRV(){
 
-        mRV = (RecyclerView) findViewById(R.id.rvContactos);
+        mAdapter = new MyAdapter(contactosGuardados, new MyAdapter.OnItemClickListener() {
+            @Override
+            public void onItemClick(Contacto contacto, int position) {
 
-        mAdapter = new MyAdapter(contactosGuardados);
+                contactoDetalle = contacto;
+
+                Intent i = new Intent(MainActivity.this, EditarContacto.class);
+
+                i.putExtra("contacto", contacto);
+
+                startActivityForResult(i, CODIGO_EDITAR_CONTACTO);
+            }
+        });
+
         mRV.setAdapter(mAdapter);
-
         mLM = new LinearLayoutManager(this);
         mRV.setLayoutManager(mLM);
-
     }
 
     public boolean isExternalStorageWritable() {
@@ -276,7 +289,7 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    public String setCSVString(){
+    public String setCSVString(ArrayList<Contacto> contactos){
 
         String fileContents = "";
 
@@ -292,10 +305,11 @@ public class MainActivity extends AppCompatActivity {
         return fileContents;
     }
 
-    public void guardarEnMemoriaInternaP(){
+    public void guardarEnMemoriaInternaP(String fileContents){
+
+        Log.v(TAG, "Guardar en MEMORIA INTERNA");
 
         String filename = "contactos.txt";
-        String fileContents = setCSVString();
         FileOutputStream outputStream;
 
         try {
@@ -314,12 +328,21 @@ public class MainActivity extends AppCompatActivity {
 
     public void leerMemoriaInternaP(){
 
-        Log.v(TAG, "Leer memoria interna");
+        String filename = "contactos.txt";
+        File parent = MainActivity.this.getFilesDir();
+
+        //Vaciamos la varible que contine los contactos guardados.
+        contactosGuardados = new ArrayList<>();
+
+        leerMemoria(parent, filename);
+
+    }
+
+    public void leerMemoria(File parent, String filename){
 
         String nombre;
         String telefono;
-        String filename = "contactos.txt";
-        File file = new File(MainActivity.this.getFilesDir(), filename);
+        File file = new File(parent, filename);
 
         try {
 
@@ -338,7 +361,7 @@ public class MainActivity extends AppCompatActivity {
 
                 contactosGuardados.add(c);
 
-                Log.v(TAG, "Contacto " + c.getNombre() + " añadido.");
+                //Log.v(TAG, "Contacto " + c.getNombre() + " añadido.");
             }
 
         } catch (IOException e) {
@@ -346,53 +369,138 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public void guardarEnMemoriaExternaP() {
+    public void guardarEnMemoriaExternaP(String filecontents) {
 
-        String filename = "contactos.txt";
-        String fileContents = setCSVString();
-        FileOutputStream outputStream;
-
-        //Pasamos null para que acceda a la memoria privada de nuestra aplicación.
-        File file = new File(MainActivity.this.getExternalFilesDir(null), filename);
+        Log.v(TAG, "Guardar en memoria externa");
 
         try {
+            File ruta_sd = MainActivity.this.getExternalFilesDir(null);
 
-            outputStream = openFileOutput(filename, Context.MODE_PRIVATE);
-            outputStream.write(fileContents.getBytes());
-            outputStream.close();
+            File f = new File(ruta_sd.getAbsolutePath(), "contactos.txt");
 
-            Log.v(TAG, "despuesde escribir en MExternaPrivada");
+            OutputStreamWriter fout = new OutputStreamWriter(new FileOutputStream(f));
 
-        } catch (Exception e) {
+            fout.write(filecontents);
+            fout.close();
 
-            e.printStackTrace();
+            Log.v(TAG, "File path: " + f.getAbsolutePath());
 
+        } catch (Exception ex){
+            Log.v(TAG, "Error al escribir fichero a tarjeta SD");
         }
-
-        Log.v(TAG, "path del file: " + file.getPath());
 
     }
 
     public void leerMemoriaExternaP(){
 
         String filename = "contactos.txt";
-        File file = new File(MainActivity.this.getExternalFilesDir(null), filename);
+        File parent = MainActivity.this.getExternalFilesDir(null);
 
-        try {
+        leerMemoria(parent, filename);
+    }
 
-            BufferedReader br = new BufferedReader(new FileReader(file));
-            String st;
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        //return super.onCreateOptionsMenu(menu);
 
-            while ((st = br.readLine()) != null){
-                Log.v(TAG,"-----------------------------------------------------");
-                Log.v(TAG, "Linea: " + st);
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        //return super.onOptionsItemSelected(item);
+
+        switch (item.getItemId()) {
+
+            //Guardar contactos en la memoria interna.
+            case R.id.miInterna:
+
+                //Controlamos dónde se van a almacenar los datos.
+                CODIGO_MEMORIA = CODIGO_INTERNA;
+
+                //Comprobamos si tenemos los permisos necesarios para leer los contactos
+                if (ContextCompat.checkSelfPermission(MainActivity.this,
+                        Manifest.permission.READ_CONTACTS)== PackageManager.PERMISSION_GRANTED){
+
+                    Toast.makeText(MainActivity.this, "You have already granted this permission!", Toast.LENGTH_SHORT).show();
+
+                    //Obtenemos los contactos del teléfono
+                    getContactos();
+
+                    //Los guardamos en la memoria
+                    guardarEnMemoriaInternaP(setCSVString(contactosTelefono));
+
+                    //Volvemos a obtener los contactos que hemos almacenado
+                    leerMemoriaInternaP();
+
+                    mAdapter.notifyDataSetChanged();
+
+
+                }else{
+
+                    requestReadContactsPermission();
+                }
+
+                return true;
+
+            case R.id.miExterna:
+
+                CODIGO_MEMORIA = CODIGO_EXTERNA;
+
+                //Comprobamos si tenemos los permisos necesarios para leer los contactos
+                if (ContextCompat.checkSelfPermission(MainActivity.this,
+                        Manifest.permission.READ_CONTACTS)== PackageManager.PERMISSION_GRANTED){
+
+                    Toast.makeText(MainActivity.this, "You have already granted this permission!", Toast.LENGTH_SHORT).show();
+
+                    getContactos();
+                    guardarEnMemoriaExternaP(setCSVString(contactosTelefono));
+                    leerMemoriaExternaP();
+
+                    mAdapter.notifyDataSetChanged();
+
+
+                }else{
+
+                    requestReadContactsPermission();
+                }
+
+                return  true;
+
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if(requestCode == CODIGO_EDITAR_CONTACTO){
+
+            //Obtenemos el contacto que ha sido editado.
+            contactoDetalle = data.getParcelableExtra("contactoNuevo");
+
+            //Lo actualizamos en el array
+            contactosGuardados.remove(posicionContacoSelec);
+            contactosGuardados.add(posicionContacoSelec, contactoDetalle);
+
+            //Guardamos los nuevos datos.
+            if(CODIGO_MEMORIA.equalsIgnoreCase(CODIGO_INTERNA)){
+
+                guardarEnMemoriaInternaP(setCSVString(contactosGuardados));
+
+                mAdapter.notifyDataSetChanged();
+
+            }else if(CODIGO_MEMORIA.equalsIgnoreCase(CODIGO_EXTERNA)){
+
+                guardarEnMemoriaExternaP(setCSVString(contactosGuardados));
+
+                mAdapter.notifyDataSetChanged();
             }
-
-        } catch (IOException e) {
-
-            e.printStackTrace();
 
         }
     }
-
 }

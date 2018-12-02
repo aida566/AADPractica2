@@ -12,11 +12,13 @@ import java.util.ArrayList;
 
 public class MyAdapter extends RecyclerView.Adapter <MyAdapter.MyViewHolder>{
 
-    ArrayList<Contacto> contactos;
+    private ArrayList<Contacto> contactos;
+    private OnItemClickListener listener;
 
-    public MyAdapter(ArrayList<Contacto> contactos) {
+    public MyAdapter(ArrayList<Contacto> contactos, OnItemClickListener listener) {
 
         this.contactos = contactos;
+        this.listener = listener;
 
     }
 
@@ -34,8 +36,9 @@ public class MyAdapter extends RecyclerView.Adapter <MyAdapter.MyViewHolder>{
     public void onBindViewHolder(@NonNull MyViewHolder myViewHolder, int i) {
 
         myViewHolder.nombre.setText(contactos.get(i).getNombre());
-
         myViewHolder.telefono.setText(contactos.get(i).getTelefono());
+
+        myViewHolder.bind(contactos.get(i), listener, i);
 
         Log.d("longitud bind", String.valueOf(i));
     }
@@ -58,20 +61,22 @@ public class MyAdapter extends RecyclerView.Adapter <MyAdapter.MyViewHolder>{
             super(itemView);
 
             //Asociamos las istas del viewHolder con las correspondientes en nuestro layout.
-
             nombre = itemView.findViewById(R.id.tvNombre);
-
             telefono = itemView.findViewById(R.id.tvTelefono);
 
-            itemView.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
+        }
 
-                    //Llama a actividad editcontacto
+        public void bind(final Contacto contacto, final OnItemClickListener listener, final int i) {
+
+            itemView.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    listener.onItemClick(contacto, i);
                 }
             });
-
         }
     }
 
+    public interface OnItemClickListener {
+        void onItemClick(Contacto contacto, int i);
+    }
 }
